@@ -13,6 +13,7 @@ local Dead = false
 local deadcam = nil
 local angleY = 0.0
 local angleZ = 0.0
+local npcMedicCalled = false
 
 ---------------------------------------------------------------------
 -- death timer
@@ -117,6 +118,10 @@ local ProcessNewPosition = function()
 
     local maxRadius = 3.5
 
+    if IsEntityAttachedToAnyPed(ped) then
+        maxRadius = 4.5
+    end
+
     if (hitBool and Vdist(pCoords.x, pCoords.y, pCoords.z + 0.0, hitCoords) < 0.5 + 0.5) then
         maxRadius = Vdist(pCoords.x, pCoords.y, pCoords.z + 0.0, hitCoords)
     end
@@ -169,6 +174,7 @@ local MedicCalled = function()
             Wait(delay)
 
             medicCalled = false
+            npcMedicCalled = false
 
             return
         end
@@ -245,6 +251,9 @@ CreateThread(function()
             deathactive = true
             TriggerServerEvent("RSGCore:Server:SetMetaData", "isdead", true)
             TriggerEvent('rsg-medic:client:DeathCam')
+
+            -- BM Doctor
+            LocalPlayer.state:set('isdead', true, false)
         end
         Wait(1000)
     end
@@ -272,33 +281,60 @@ CreateThread(function()
         if deathactive then
             t = 4
 
-            if deathTimerStarted and deathSecondsRemaining > 0 then
+            if deathTimerStarted and deathSecondsRemaining > 0 and not LocalPlayer.state.IsUsingMedicalService then
                 DrawTxt('RESPAWN IN '..deathSecondsRemaining..' SECONDS..', 0.50, 0.80, 0.5, 0.5, true, 104, 244, 120, 200, true)
             end
 
-            if deathTimerStarted and deathSecondsRemaining == 0 and medicsonduty == 0 then
+            if deathTimerStarted and deathSecondsRemaining == 0 and medicsonduty == 0 and not LocalPlayer.state.IsUsingMedicalService then
                 DrawTxt('PRESS [E] TO RESPAWN', 0.50, 0.85, 0.5, 0.5, true, 104, 244, 120, 200, true)
             end
 
-            if deathTimerStarted and deathSecondsRemaining < Config.DeathTimer and medicsonduty > 0 and not medicCalled then
+            if deathTimerStarted and deathSecondsRemaining < Config.DeathTimer and medicsonduty > 0 and not medicCalled and not npcMedicCalled then
                 if deathSecondsRemaining == 0 then
                     DrawTxt('PRESS [E] TO RESPAWN - PRESS [J] TO CALL FOR ASSISTANCE', 0.50, 0.85, 0.5, 0.5, true, 104, 244, 120, 200, true)
                 else
                     DrawTxt('PRESS [J] TO CALL FOR ASSISTANCE', 0.50, 0.85, 0.5, 0.5, true, 104, 244, 120, 200, true)
                 end
+            elseif deathTimerStarted
+            and deathSecondsRemaining < Config.DeathTimer
+            and medicsonduty == 0
+            and not medicCalled
+            and not npcMedicCalled
+            then
+                DrawTxt('PRESS [J] TO CALL LOCAL DOCTOR', 0.50, 0.85, 0.5, 0.5, true, 104, 244, 120, 200, true)
             end
 
-            if deathTimerStarted and deathSecondsRemaining == 0 and IsControlPressed(0, RSGCore.Shared.Keybinds['E']) then
+            if deathTimerStarted and deathSecondsRemaining == 0 and IsControlPressed(0, RSGCore.Shared.Keybinds['E']) and not LocalPlayer.state.IsUsingMedicalService then
                 deathTimerStarted = false
 
                 TriggerEvent('rsg-medic:client:revive')
                 TriggerServerEvent('rsg-medic:server:deathactions')
             end
 
-            if deathactive and deathTimerStarted and deathSecondsRemaining < Config.DeathTimer and IsControlPressed(0, RSGCore.Shared.Keybinds['J']) and not medicCalled then
+            if deathactive and
+            deathTimerStarted and
+            deathSecondsRemaining < Config.DeathTimer and
+            IsControlPressed(0, RSGCore.Shared.Keybinds['J'])
+            and not medicCalled
+            then
+                local player = RSGCore.Functions.GetPlayerData()
+                local job = player.job.name
                 medicCalled = true
 
+                if (medicsonduty == 0 and not npcMedicCalled) or job == Config.JobRequired then
+                    npcMedicCalled = true
+
+                    MedicCalled()
+
+                    TriggerEvent('bm-doctor:client:SpawnMedic')
+
+                    RSGCore.Functions.Notify('Local Doctor has been called!', 'success', 5000)
+
+                    goto continue
+                end
+
                 if medicsonduty == 0 then
+
                     MedicCalled()
 
                     goto continue
@@ -531,6 +567,33 @@ RegisterNetEvent('rsg-medic:client:playerRevive', function()
     DoScreenFadeIn(1800)
 
     TriggerServerEvent("RSGCore:Server:SetMetaData", "isdead", false)
+end)
+
+---------------------------------------------------------------------
+-- BM Doctor Revive
+---------------------------------------------------------------------
+RegisterNetEvent('rsg-medic:clent:playerReviveAI', function()
+    ResurrectPed(PlayerPedId())
+    ClearPedBloodDamage(player)
+
+    Citizen.InvokeNative(0xC6258F41D86676E0, player, 0, 100) -- SetAttributeCoreValue
+    Citizen.InvokeNative(0xC6258F41D86676E0, player, 1, 100) -- SetAttributeCoreValue
+
+    TriggerServerEvent('RSGCore:Server:SetMetaData', 'isdead', false)
+    TriggerServerEvent("RSGCore:Server:SetMetaData", "hunger", 100)
+    TriggerServerEvent("RSGCore:Server:SetMetaData", "thirst", 100)
+    TriggerServerEvent("RSGCore:Server:SetMetaData", "cleanliness", 100)
+    TriggerServerEvent('rsg-medic:server:SetHealth', Config.MaxHealth)
+
+    deathactive = false
+    deathTimerStarted = false
+    medicCalled = false
+    npcMedicCalled = false
+    deathSecondsRemaining = 0
+
+    if not LocalPlayer.state.IsUsingMedicalService then
+        DoScreenFadeIn(1800)
+    end
 end)
 
 ---------------------------------------------------------------------
