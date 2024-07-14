@@ -33,7 +33,7 @@ end
 
 
 -- Admin Revive Player
-RSGCore.Commands.Add("revive", Lang:t('info.revive_player_a'), {{name = "id", help = Lang:t('info.player_id')}}, false, function(source, args)
+RSGCore.Commands.Add("revive", Lang:t('server.lang_1'), {{name = "id", help = Lang:t('server.lang_2')}}, false, function(source, args)
     local src = source
 
     if not args[1] then
@@ -45,8 +45,7 @@ RSGCore.Commands.Add("revive", Lang:t('info.revive_player_a'), {{name = "id", he
     local Player = RSGCore.Functions.GetPlayer(tonumber(args[1]))
 
     if not Player then
-        TriggerClientEvent('RSGCore:Notify', src, Lang:t('error.not_online'), 'error')
-
+        TriggerClientEvent('ox_lib:notify', src, {title = Lang:t('server.lang_3'), type = 'error', duration = 7000 })
         return
     end
 
@@ -54,15 +53,14 @@ RSGCore.Commands.Add("revive", Lang:t('info.revive_player_a'), {{name = "id", he
 end, "admin")
 
 -- Admin Kill Player
-RSGCore.Commands.Add("kill", Lang:t('info.kill_player'), {{name = "id", help = Lang:t('info.player_id')}}, true, function(source, args)
+RSGCore.Commands.Add("kill", Lang:t('server.lang_4'), {{name = "id", help = Lang:t('server.lang_5')}}, true, function(source, args)
     local src = source
     local target = tonumber(args[1])
 
     local Player = RSGCore.Functions.GetPlayer(target)
 
     if not Player then
-        RSGCore.Functions.Notify(src, Lang:t('error.not_online'), 'error')
-
+        TriggerClientEvent('ox_lib:notify', src, {title = Lang:t('server.lang_6'), type = 'error', duration = 7000 })
         return
     end
 
@@ -80,16 +78,13 @@ RegisterNetEvent('rsg-medic:server:deathactions', function()
 
     if Config.WipeInventoryOnRespawn then
         Player.Functions.ClearInventory()
-
         MySQL.Async.execute('UPDATE players SET inventory = ? WHERE citizenid = ?', { json.encode({}), Player.PlayerData.citizenid })
-
-        TriggerClientEvent('RSGCore:Notify', src, 'you lost all your possessions!', 'primary')
+        TriggerClientEvent('ox_lib:notify', src, {title = Lang:t('server.lang_7'), type = 'info', duration = 7000 })
     end
 
     if Config.WipeCashOnRespawn then
         Player.Functions.SetMoney('cash', 0)
-
-        TriggerClientEvent('RSGCore:Notify', src, 'you lost all your cash!', 'primary')
+        TriggerClientEvent('ox_lib:notify', src, {title = Lang:t('server.lang_8'), type = 'info', duration = 7000 })
     end
 end)
 
@@ -97,7 +92,7 @@ end)
 RSGCore.Functions.CreateCallback('rsg-medic:server:getplayerhealth', function(source, cb)
     local src = source
     local Player = RSGCore.Functions.GetPlayer(src)
-	local health = Player.PlayerData.metadata["health"]
+    local health = Player.PlayerData.metadata["health"]
     cb(health)
 end)
 
@@ -126,8 +121,7 @@ RegisterNetEvent('rsg-medic:server:RevivePlayer', function(playerId)
     if not Patient then return end
 
     if Player.PlayerData.job.name ~= Config.JobRequired then
-        TriggerClientEvent('RSGCore:Notify', src, Lang:t('error.not_medic'), 'error')
-
+        TriggerClientEvent('ox_lib:notify', src, {title = Lang:t('server.lang_9'), type = 'error', duration = 7000 })
         return
     end
 
@@ -146,8 +140,7 @@ RegisterNetEvent('rsg-medic:server:TreatWounds', function(playerId)
     if not Patient then return end
 
     if Player.PlayerData.job.name ~= Config.JobRequired then
-        TriggerClientEvent('RSGCore:Notify', src, Lang:t('error.not_medic'), 'error')
-
+        TriggerClientEvent('ox_lib:notify', src, {title = Lang:t('server.lang_9'), type = 'error', duration = 7000 })
         return
     end
 
